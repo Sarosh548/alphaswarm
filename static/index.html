@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AlphaSwarm - Paper Trading Platform</title>
+<style>
+  :root { --bg:#0f1420; --card:#1a2233; --line:#2a3550; --txt:#e8edf7;
+          --mut:#93a1bd; --acc:#4da3ff; --good:#3ecf8e; --bad:#ff6b6b;
+          --warn:#ffc857; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+         background:var(--bg); color:var(--txt); }
+  header { display:flex; align-items:center; gap:16px; padding:12px 20px;
+           background:var(--card); border-bottom:1px solid var(--line);
+           flex-wrap:wrap; }
+  header h1 { font-size:20px; margin:0; }
+  .badge { font-size:11px; padding:2px 8px; border-radius:10px;
+           background:#3a2f10; color:var(--warn); border:1px solid var(--warn); }
+  .badge.paper { background:#10302a; color:var(--good); border-color:var(--good); }
+  nav { display:flex; gap:6px; flex-wrap:wrap; padding:10px 20px 0; }
+  nav button { background:var(--card); color:var(--txt); border:1px solid var(--line);
+               padding:8px 14px; border-radius:8px 8px 0 0; cursor:pointer; }
+  nav button.active { background:#232f4a; border-bottom-color:#232f4a; color:#fff; }
+  main { padding:20px; max-width:1150px; margin:0 auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px;
+          padding:16px; margin-bottom:16px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+          gap:12px; }
+  .stat b { font-size:24px; display:block; }
+  .stat span { color:var(--mut); font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line);
+           vertical-align:top; }
+  th { color:var(--mut); font-weight:600; }
+  button.btn { background:var(--acc); color:#fff; border:0; padding:7px 13px;
+               border-radius:7px; cursor:pointer; font-size:13px; }
+  button.btn.secondary { background:#2c3a5c; }
+  button.btn.danger { background:#a02c2c; }
+  button.btn:disabled { opacity:.45; cursor:not-allowed; }
+  input, select { background:#121a2b; color:var(--txt); border:1px solid var(--line);
+                  border-radius:7px; padding:8px; width:100%; margin:4px 0 10px; }
+  label { font-size:13px; color:var(--mut); }
+  .mut { color:var(--mut); } .good { color:var(--good); } .bad { color:var(--bad); }
+  .warn { color:var(--warn); }
+  .pill { font-size:11px; padding:2px 8px; border-radius:10px; border:1px solid var(--line); }
+  .pill.conf { color:var(--good); border-color:var(--good); }
+  .pill.unconf { color:var(--warn); border-color:var(--warn); }
+  .reason { white-space:pre-wrap; font-size:13px; background:#121a2b; padding:10px;
+            border-radius:8px; border:1px solid var(--line); }
+  .hidden { display:none; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .err { color:var(--bad); } .okmsg { color:var(--good); }
+  footer.legal { max-width:1100px; margin:0 auto; padding:14px 20px 26px;
+    font-size:12px; color:var(--mut); text-align:center; }
+  footer.legal a { color:var(--mut); text-decoration:underline; cursor:pointer; }
+  .legal-body p, .legal-body li { font-size:14px; line-height:1.55; }
+  .disc { font-size:12px; color:var(--mut); border-top:1px solid var(--line);
+          padding-top:8px; margin-top:10px; }
+  .killbar { background:#3a1420; border:1px solid var(--bad); }
+  a { color:var(--acc); }
+  /* signal-first home */
+  #tabs .adv { display:none; }
+  body.advanced #tabs .adv { display:inline-block; }
+  #tabs .adv.hidden, body.advanced #tabs .adv.hidden { display:none; }
+  .sigbadge { display:inline-block; font-size:22px; font-weight:700;
+              padding:6px 22px; border-radius:10px; letter-spacing:1px; }
+  .sigbadge.buy { background:#0f3524; color:var(--good); border:2px solid var(--good); }
+  .sigbadge.sell { background:#3a1420; color:var(--bad); border:2px solid var(--bad); }
+  .sigbadge.wait { background:#2c2c2c; color:#c9c9c9; border:2px solid #777; }
+  .siglevels { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+               gap:10px; margin:14px 0; }
+  .siglevels .lv { background:#121a2b; border:1px solid var(--line);
+                   border-radius:8px; padding:10px; }
+  .siglevels .lv span { display:block; color:var(--mut); font-size:12px; }
+  .siglevels .lv b { font-size:17px; }
+  .sigcard h3 { margin:0 0 4px; }
+  .botcards { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+              gap:12px; }
+  .botcard h4 { margin:0 0 6px; }
+  .statuspill { font-size:11px; padding:2px 9px; border-radius:10px;
+                border:1px solid var(--line); }
+  .statuspill.running { color:var(--good); border-color:var(--good); }
+  .statuspill.paused { color:var(--warn); border-color:var(--warn); }
+  .statuspill.stopped { color:var(--bad); border-color:var(--bad); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🐝 AlphaSwarm</h1>
+  <span class="badge paper">PAPER TRADING ONLY</span>
+  <span class="badge">BILLING: TEST MODE</span>
+  <span id="who" class="mut" style="margin-left:auto"></span>
+  <button id="logoutBtn" class="btn secondary hidden">Log out</button>
+</header>
+
+<div id="authView">
+  <main>
+    <div class="card" style="max-width:460px;margin:30px auto">
+      <h2 id="authTitle">Log in</h2>
+      <p class="mut">A team of AI agents analyses the market, trades with
+        <b>paper money</b>, and explains every decision. The first person to
+        sign up becomes the admin (owner).</p>
+      <label>Your name (for sign up)</label>
+      <input id="authName" placeholder="e.g. Sarosh">
+      <label>Email</label>
+      <input id="authEmail" type="email" placeholder="you@example.com">
+      <label>Password</label>
+      <input id="authPass" type="password" placeholder="At least 6 characters">
+      <div class="row">
+        <button id="loginBtn" class="btn">Log in</button>
+        <button id="signupBtn" class="btn secondary">Sign up</button>
+      </div>
+      <p id="authMsg"></p>
+    </div>
+  </main>
+</div>
+
+<div id="appView" class="hidden">
+  <nav id="tabs">
+    <button data-tab="home" class="active">Home</button>
+    <button id="advToggle" class="secondary" title="Show the detailed screens">Advanced ▾</button>
+    <button data-tab="bot" class="adv">Bot detail</button>
+    <button data-tab="live" class="adv">Live trades</button>
+    <button data-tab="news" class="adv">News feed</button>
+    <button data-tab="compare" class="adv">Bot comparison</button>
+    <button data-tab="settings" class="adv">Settings</button>
+    <button data-tab="billing" class="adv">Billing &amp; plans</button>
+    <button data-tab="admin" id="adminTab" class="adv hidden">Admin</button>
+  </nav>
+  <main>
+    <div id="haltBar" class="card killbar hidden">
+      ⛔ <b>GLOBAL KILL SWITCH IS ON.</b> All bots are halted and open paper
+      positions were closed. An admin can clear it in Settings.
+    </div>
+
+    <!-- 1. HOME (signal-first) -->
+    <section id="tab-home">
+      <div class="card">
+        <h2 style="margin-top:0">What is the market doing right now?</h2>
+        <p>Type any crypto market and AlphaSwarm's agents check the
+          <b>live</b> market and answer in one word - <b>BUY</b>,
+          <b>SELL</b> or <b>WAIT</b> - with the entry price, the
+          take-profit, the stop-loss and the reasons in plain words.
+          WAIT is a real answer: when no proven strategy fits the
+          market's current situation, the platform sits out instead of
+          forcing a trade.</p>
+        <p class="warn"><b>Paper trading only.</b> Everything here is
+          simulated - no real money, not financial advice, and no
+          result is a guarantee of profit. Signals can be wrong;
+          losses are published next to wins.</p>
+        <div class="row">
+          <input id="sigSymbol" placeholder="Type a market - e.g. BTC, ETH, SOL or BTCUSDT"
+                 style="max-width:420px;margin:0">
+          <button id="sigBtn" class="btn">Get signal</button>
+        </div>
+        <div id="sigResult" style="margin-top:14px"></div>
+      </div>
+      <div class="card">
+        <h3>Live signals - top markets right now</h3>
+        <p class="mut" id="sigGridNote">Loading the top markets…</p>
+        <div id="sigGrid" class="botcards"></div>
+        <p style="margin-top:10px"><button id="sigRefresh" class="btn secondary">Refresh signals</button></p>
+      </div>
+      <div class="card">
+        <h3>My watchlist</h3>
+        <p class="mut">Markets you chose to keep an eye on - tap ☆ Watch
+          on any signal card to add it here. Watching a market does not
+          use your daily signal searches.</p>
+        <div id="watchList" class="botcards"></div>
+      </div>
+      <div class="card">
+        <h3>Paper-trading bots</h3>
+        <p class="mut">Each bot trades <b>paper money</b> on its own,
+          following the same signals and safety rules. <b>Start</b>
+          begins its paper trading; <b>Pause</b> stops it opening new
+          paper trades. Paper results are not a promise of real
+          returns - a bot's full record, wins and losses, is under
+          Advanced → Bot detail.</p>
+        <div id="homeBots" class="botcards"></div>
+      </div>
+      <div class="card">
+        <h3>Track record</h3>
+        <p class="mut">Every closed paper trade from published bots —
+          wins and losses alike. Nothing is hidden.</p>
+        <div id="recordList"></div>
+      </div>
+      <div class="grid">
+        <div class="card stat"><span>Total paper profit / loss</span><b id="hPnl">–</b></div>
+        <div class="card stat"><span>Win rate (all bots)</span><b id="hWin">–</b></div>
+        <div class="card stat"><span>Open paper trades</span><b id="hOpen">–</b></div>
+        <div class="card stat"><span>Market mood (Fear &amp; Greed)</span><b id="hFg">–</b></div>
+      </div>
+      <p class="disc" id="hDisc"></p>
+    </section>
+
+    <!-- 2. BOT DETAIL -->
+    <section id="tab-bot" class="hidden">
+      <div class="card">
+        <div class="row">
+          <label style="margin:0">Choose a bot:</label>
+          <select id="botSelect" style="max-width:320px;margin:0"></select>
+          <span id="botActions"></span>
+        </div>
+        <div id="botMeta" style="margin-top:10px"></div>
+        <h4>Equity curve (paper balance over time)</h4>
+        <div id="botCurve"></div>
+        <h4>Latest agent signals</h4>
+        <div id="botVotes"></div>
+      </div>
+      <div class="card">
+        <h3>Trades &amp; reasons</h3>
+        <div id="botTrades"></div>
+      </div>
+    </section>
+
+    <!-- 3. LIVE TRADES -->
+    <section id="tab-live" class="hidden">
+      <div class="card">
+        <h3>Open paper positions</h3>
+        <p class="mut">Prices shown are the last closed hourly candle.
+          Unrealised profit/loss is an estimate before exit fees.</p>
+        <div id="liveTrades"></div>
+      </div>
+    </section>
+
+    <!-- 4. NEWS -->
+    <section id="tab-news" class="hidden">
+      <div class="card">
+        <h3>Confirmed alerts</h3>
+        <div id="newsAlerts"></div>
+      </div>
+      <div class="card">
+        <h3>Latest crypto news</h3>
+        <p class="mut" id="newsNote"></p>
+        <div id="newsList"></div>
+      </div>
+    </section>
+
+    <!-- 5. COMPARE -->
+    <section id="tab-compare" class="hidden">
+      <div class="card">
+        <h3>Bot comparison</h3>
+        <p class="mut">Same metrics for every bot, side by side - use this to
+          decide which bot deserves to go public.</p>
+        <div id="compareTable"></div>
+        <p class="disc" id="cmpDisc"></p>
+      </div>
+    </section>
+
+    <!-- 6. SETTINGS -->
+    <section id="tab-settings" class="hidden">
+      <div class="card">
+        <h3>Bot settings</h3>
+        <div id="settingsForm"></div>
+      </div>
+      <div class="card killbar">
+        <h3>⛔ Kill switches</h3>
+        <p>Per-bot kill switch: on the Bot detail screen. Global kill switch:
+          stops <b>every</b> bot and closes <b>every</b> open paper position
+          immediately.</p>
+        <div class="row">
+          <button id="globalKill" class="btn danger">ACTIVATE GLOBAL KILL SWITCH</button>
+          <button id="globalClear" class="btn secondary">Clear global kill switch</button>
+        </div>
+        <p id="killMsg"></p>
+      </div>
+    </section>
+
+    <!-- 7. BILLING -->
+    <section id="tab-billing" class="hidden">
+      <div class="card">
+        <h3>Plans</h3>
+        <p class="warn"><b>TEST MODE:</b> no real payment provider is connected.
+          Any test card number succeeds and nothing is really charged.</p>
+        <div id="plans" class="grid"></div>
+        <p class="disc" id="billDisc"></p>
+      </div>
+      <div class="card" id="checkoutCard">
+        <h3>Subscribe (test checkout)</h3>
+        <label>Plan</label>
+        <select id="coPlan"><option value="pro">Pro - $19/month</option>
+          <option value="premium">Premium - $49/month</option></select>
+        <label>Card number (test - try 4242 4242 4242 4242)</label>
+        <input id="coCard" placeholder="4242 4242 4242 4242">
+        <button id="coBtn" class="btn">Pay (test mode)</button>
+        <p id="coMsg"></p>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="tab-admin" class="hidden">
+      <div class="card">
+        <h3>Create a bot</h3>
+        <label>Name</label><input id="nbName" placeholder="e.g. BTC/ETH/SOL Technical v1">
+        <label>Type</label>
+        <select id="nbKind">
+          <option value="v1">Technical v1 - consensus of 4 analyst agents (BTC/ETH/SOL)</option>
+          <option value="v2">Technical v2 - v1 + 4h trend filter + momentum required</option>
+          <option value="breakout">Breakout - Donchian-20 channel breakout + 4h trend filter + volatility guard</option>
+          <option value="router">Regime Router - classifies each coin's market situation, routes to the proven specialist (breakout / v2 consensus), sits out the rest</option>
+          <option value="range">Range Specialist (CANDIDATE, forward proof pending) - sideways-market fade: flat-trend gate + stochastic turn, target = far side of the range</option>
+          <option value="event">Event Watcher - market screener + news + alerts (does not trade)</option>
+        </select>
+        <label>Starting paper balance (USD)</label><input id="nbEquity" type="number" value="10000">
+        <label>Risk per trade (e.g. 0.01 = 1%)</label><input id="nbRisk" type="number" step="0.001" value="0.01">
+        <label>Daily loss limit (e.g. 0.03 = 3%)</label><input id="nbDaily" type="number" step="0.001" value="0.03">
+        <label>Auto-cycle every N minutes (0 = manual only)</label><input id="nbCycle" type="number" value="0">
+        <label>Universe mode (technical bots)</label>
+        <select id="nbUniverseMode">
+          <option value="fixed">Fixed - BTC/ETH/SOL only</option>
+          <option value="screener">Screener - top coins across the whole market</option>
+        </select>
+        <label>Universe size (screener mode: top N coins, 5-30)</label><input id="nbUniverseSize" type="number" min="5" max="30" value="20">
+        <button id="nbBtn" class="btn">Create bot</button>
+        <p id="nbMsg"></p>
+      </div>
+      <div class="card"><h3>Users</h3><div id="adminUsers"></div></div>
+      <div class="card"><h3>Audit log</h3><div id="adminLogs"></div></div>
+      <div class="card">
+        <h3>Backups</h3>
+        <p class="mut">The platform backs itself up daily (platform
+          database + every bot journal, newest 7 days kept). You can
+          also take one now or download the latest backup as a zip.</p>
+        <div class="row">
+          <button id="bkBtn" class="btn secondary">Create backup now</button>
+          <button id="bkDlBtn" class="btn secondary">Download latest backup (.zip)</button>
+        </div>
+        <p id="bkMsg"></p>
+      </div>
+    </section>
+
+    <!-- TERMS OF SERVICE -->
+    <section id="tab-terms" class="hidden">
+      <div class="card legal-body">
+        <h3>Terms of Service</h3>
+        <p class="mut">Draft - plain-language terms for the AlphaSwarm
+          paper-trading platform. Last updated: 2026-11-19.</p>
+        <h4>1. What AlphaSwarm is</h4>
+        <p>AlphaSwarm is a <b>paper-trading</b> platform. Software bots
+          analyse public crypto market data and place <b>simulated</b>
+          trades with virtual money. No real money is traded, no real
+          orders are placed on any exchange, and the platform never
+          asks for, stores, or uses exchange API keys or wallet keys.</p>
+        <h4>2. No financial advice, no profit guarantee</h4>
+        <p>Nothing on this platform is financial advice. Balances,
+          profit/loss figures, win rates and every other result are
+          simulated paper results. <b>Past paper performance is not a
+          promise of real returns.</b> Bots can and do lose paper money;
+          a bot that performed well in simulation may perform badly in
+          the future or in real markets. Do not make financial decisions
+          based on this platform.</p>
+        <h4>3. Accounts</h4>
+        <p>You are responsible for your account and for keeping your
+          password private. The first registered account is the platform
+          administrator. We may pause or remove accounts that abuse the
+          service or attempt to disrupt it.</p>
+        <h4>4. Plans and billing (TEST MODE)</h4>
+        <p>Billing currently runs in <b>test mode</b>: no real payment
+          provider is connected, no card is ever really charged, and any
+          test card number succeeds. Plan prices shown are examples of
+          the intended pricing. If real billing is introduced later, it
+          will be announced in advance and these terms will be updated
+          before any real charge can happen.</p>
+        <h4>5. Availability and changes</h4>
+        <p>The platform is provided "as is", without any warranty that
+          it will be available, uninterrupted, or error-free. Market
+          data comes from public third-party sources and may be delayed
+          or unavailable. We may change, suspend, or stop features at
+          any time; strategies and results shown may change as the
+          software is improved.</p>
+        <h4>6. Acceptable use</h4>
+        <p>Do not attempt to break, overload, or gain unauthorised
+          access to the platform or other users' data. Paper-trading
+          results must not be marketed or resold as proof of real
+          trading performance.</p>
+        <h4>7. Contact</h4>
+        <p>Questions about these terms: <b>support@alphaswarm.example</b>
+          (placeholder - replace with the real support address before
+          launch).</p>
+      </div>
+    </section>
+
+    <!-- PRIVACY POLICY -->
+    <section id="tab-privacy" class="hidden">
+      <div class="card legal-body">
+        <h3>Privacy Policy</h3>
+        <p class="mut">Draft - plain-language policy for the AlphaSwarm
+          paper-trading platform. Last updated: 2026-11-19.</p>
+        <h4>1. What we collect</h4>
+        <ul>
+          <li><b>Account details:</b> your name and email address, and a
+            salted, hashed form of your password (we never store your
+            password in plain text and cannot read it).</li>
+          <li><b>Paper-trading activity:</b> the bots, settings, and
+            simulated trades created under your account, and your plan
+            choice.</li>
+          <li><b>Test-mode billing records:</b> the plan, the amount,
+            and only the last 4 digits of the test card used. We never
+            receive or store full card numbers, and in test mode no
+            payment is processed at all.</li>
+          <li><b>Basic technical logs:</b> server access logs (page and
+            API requests with timestamps), kept for a limited time to
+            run and protect the service.</li>
+        </ul>
+        <h4>2. What we never collect</h4>
+        <p>We do <b>not</b> collect exchange API keys, wallet private
+          keys, real payment card details, or government ID. The
+          platform is paper-trading only and has no use for them.</p>
+        <h4>3. How your data is used</h4>
+        <p>Only to run the platform: signing you in, showing your bots
+          and paper results, enforcing plan features, keeping backups,
+          and preventing abuse. We do not sell your data, and we do not
+          share it with advertisers.</p>
+        <h4>4. Cookies</h4>
+        <p>We use one session cookie to keep you signed in. There are
+          no advertising or cross-site tracking cookies.</p>
+        <h4>5. Backups and retention</h4>
+        <p>Platform data is backed up daily and backups are kept for a
+          short rolling period (7 days), after which they are deleted.
+          If you ask us to delete your account, we will remove your
+          account data from the live platform; copies inside recent
+          backups disappear when those backups age out.</p>
+        <h4>6. Your choices</h4>
+        <p>You can ask for a copy of your data, a correction, or
+          deletion of your account at any time via the contact below.</p>
+        <h4>7. Contact</h4>
+        <p>Privacy questions or requests: <b>support@alphaswarm.example</b>
+          (placeholder - replace with the real support address before
+          launch).</p>
+      </div>
+    </section>
+  </main>
+  <footer class="legal">
+    AlphaSwarm - paper trading only. No financial advice, no profit
+    guarantee. Billing is in TEST MODE.
+    <br>
+    <a id="footTerms">Terms of Service</a> ·
+    <a id="footPrivacy">Privacy Policy</a>
+  </footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let me = null, botsCache = [], currentBotId = null;
+
+async function api(path, method, body) {
+  const r = await fetch(path, { method: method || 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const err = new Error(data.error || ('HTTP ' + r.status));
+    err.status = r.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+const money = v => (v === null || v === undefined) ? '–' :
+  (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString(undefined,
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pct = v => (v === null || v === undefined) ? '–' : (v * 100).toFixed(1) + '%';
+const cls = v => v > 0 ? 'good' : (v < 0 ? 'bad' : '');
+const fmtTs = ts => ts ? new Date(ts).toLocaleString() : '–';
+const esc = s => String(s ?? '').replace(/[&<>"]/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function showApp() {
+  $('authView').classList.add('hidden');
+  $('appView').classList.remove('hidden');
+  $('who').textContent = me.email + ' · ' + me.role + ' · plan: ' + me.plan;
+  $('logoutBtn').classList.remove('hidden');
+  $('adminTab').classList.toggle('hidden', me.role !== 'admin');
+  refreshAll();
+}
+function showAuth() {
+  $('appView').classList.add('hidden');
+  $('authView').classList.remove('hidden');
+  $('logoutBtn').classList.add('hidden');
+  $('who').textContent = '';
+}
+
+$('loginBtn').onclick = async () => {
+  try {
+    const d = await api('/api/login', 'POST',
+      { email: $('authEmail').value, password: $('authPass').value });
+    me = d.user; showApp();
+  } catch (e) { $('authMsg').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+};
+$('signupBtn').onclick = async () => {
+  try {
+    const d = await api('/api/signup', 'POST',
+      { email: $('authEmail').value, name: $('authName').value,
+        password: $('authPass').value });
+    me = d.user; showApp();
+  } catch (e) { $('authMsg').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+};
+$('logoutBtn').onclick = async () => { await api('/api/logout', 'POST'); me = null; showAuth(); };
+
+document.querySelectorAll('#tabs button[data-tab]').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('#tabs button[data-tab]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    document.querySelectorAll('main section').forEach(s => s.classList.add('hidden'));
+    $('tab-' + b.dataset.tab).classList.remove('hidden');
+    refreshAll();
+  };
+});
+
+$('advToggle').onclick = () => {
+  const on = document.body.classList.toggle('advanced');
+  $('advToggle').textContent = on ? 'Advanced ▴' : 'Advanced ▾';
+};
+
+function showLegal(which) {
+  document.querySelectorAll('#tabs button[data-tab]').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('main section').forEach(s => s.classList.add('hidden'));
+  $('tab-' + which).classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+$('footTerms').onclick = () => showLegal('terms');
+$('footPrivacy').onclick = () => showLegal('privacy');
+$('bkBtn').onclick = async () => {
+  try {
+    const d = await api('/api/admin/backup', 'POST');
+    $('bkMsg').innerHTML = '<span class="okmsg">Backup created: ' +
+      esc(d.folder) + ' (' + d.files.length + ' files).</span>';
+  } catch (e) { $('bkMsg').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+};
+$('bkDlBtn').onclick = () => { window.location = '/api/admin/backup/download'; };
+
+async function refreshAll() {
+  if (!me) return;
+  try { await loadHome(); } catch (e) {}
+  try { await loadBots(); } catch (e) {}
+  try { await loadLive(); } catch (e) {}
+  try { await loadNews(); } catch (e) {}
+  try { await loadCompare(); } catch (e) {}
+  try { await loadPlans(); } catch (e) {}
+  if (me.role === 'admin') { try { await loadAdmin(); } catch (e) {} }
+  try {
+    const m = await api('/api/me');
+    $('haltBar').classList.toggle('hidden', !m.global_halt);
+  } catch (e) {}
+}
+
+function botRow(b, withFollow) {
+  const m = b.metrics;
+  return '<tr><td><b>' + esc(b.name) + '</b><br><span class="mut">' +
+    esc(b.kind) + ' · ' + esc(b.status) + (b.published ? ' · published' : '') +
+    '</span></td><td>' + money(m.equity) + '</td>' +
+    '<td class="' + cls(m.total_pnl) + '">' + money(m.total_pnl) + '</td>' +
+    '<td>' + pct(m.win_rate) + '</td><td>' + m.trades_open + ' open / ' +
+    m.trades_closed + ' closed</td>' +
+    '<td>' + (withFollow ? '<button class="btn secondary" onclick="followBot(' +
+      b.id + ')">Follow</button>' : '') +
+    '<button class="btn secondary" onclick="openBot(' + b.id + ')">View</button></td></tr>';
+}
+
+/* ---------------- signal-first home ---------------- */
+const price = v => (v === null || v === undefined) ? '–' :
+  '$' + Number(v).toLocaleString(undefined,
+    { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+
+function signalCard(c, compact) {
+  const badgeCls = c.action === 'BUY' ? 'buy' : (c.action === 'SELL' ? 'sell' : 'wait');
+  const watching = watchSymbols.includes(c.symbol);
+  let h = '<div class="card sigcard" style="margin-bottom:0">' +
+    '<div class="row" style="justify-content:space-between">' +
+    '<h3>' + esc(c.symbol) + '</h3>' +
+    '<span><button class="btn secondary" onclick="toggleWatch(\'' +
+      esc(c.symbol) + '\')">' + (watching ? '★ Watching' : '☆ Watch') +
+      '</button> ' +
+    '<span class="sigbadge ' + badgeCls + '">' + esc(c.action) + '</span></span></div>';
+  if (c.live_price !== null && c.live_price !== undefined)
+    h += '<p style="margin:2px 0">Live: <b>' + price(c.live_price) + '</b></p>';
+  if (c.price !== null && c.price !== undefined)
+    h += '<p class="mut" style="margin:2px 0">Signal price (last completed hour): <b>' +
+         price(c.price) + '</b> · signal updated ' + fmtTs(c.as_of + 3600000) + '</p>';
+  if (c.action !== 'WAIT') {
+    h += '<div class="siglevels">' +
+      '<div class="lv"><span>Entry</span><b>' + price(c.entry) + '</b></div>' +
+      '<div class="lv"><span>Take profit</span><b class="good">' + price(c.take_profit) + '</b></div>' +
+      '<div class="lv"><span>Stop loss</span><b class="bad">' + price(c.stop_loss) + '</b></div>' +
+      '<div class="lv"><span>Agent confidence</span><b>' +
+        (c.confidence === null || c.confidence === undefined ? 'n/a (rule event)' : Math.round(c.confidence * 100) + '%') +
+      '</b></div></div>';
+  }
+  if (c.regime)
+    h += '<p style="margin:4px 0"><span class="pill">' + esc(c.regime.replace(/_/g, ' ')) +
+         '</span> <span class="pill">' + esc(c.strategy) + '</span></p>';
+  if (!compact && c.reasons && c.reasons.length)
+    h += '<div class="reason">' + c.reasons.map(r => '• ' + esc(r)).join('\n') + '</div>';
+  if (compact)
+    h += '<p style="margin:6px 0 0"><button class="btn secondary" onclick="gridPick(\'' +
+         esc(c.symbol) + '\')">See full signal &amp; reasons</button></p>';
+  if (c.error)
+    h += '<p class="err">' + esc(c.error) + '</p>';
+  h += '<p class="disc">Paper trading only - not financial advice, no guaranteed profits.</p></div>';
+  return h;
+}
+
+function gridPick(sym) {
+  $('sigSymbol').value = sym;
+  loadOneSignal();
+  window.scrollTo(0, 0);
+}
+
+let watchSymbols = [];
+let lastSearchCard = null;
+let lastGridCards = null;
+
+function openPlans() {
+  if (!document.body.classList.contains('advanced')) $('advToggle').click();
+  document.querySelector('[data-tab="billing"]').click();
+}
+
+function quotaNote(c) {
+  if (!c.quota) return '';
+  const left = Math.max(0, c.quota.limit - c.quota.used);
+  return '<p class="mut" style="margin-top:8px">Free plan: ' + left +
+    ' of ' + c.quota.limit + ' signal searches left today. ' +
+    '<a href="#" onclick="openPlans();return false">Pro is unlimited</a>.</p>';
+}
+
+function renderSearchCard() {
+  if (lastSearchCard)
+    $('sigResult').innerHTML = signalCard(lastSearchCard, false) +
+      quotaNote(lastSearchCard);
+}
+
+async function loadOneSignal() {
+  const sym = $('sigSymbol').value.trim();
+  if (!sym) { $('sigResult').innerHTML = '<p class="err">Type a market first - e.g. BTC.</p>'; return; }
+  $('sigResult').innerHTML = '<p class="mut">Checking the live market…</p>';
+  try {
+    const c = await api('/api/signal?symbol=' + encodeURIComponent(sym));
+    lastSearchCard = c;
+    renderSearchCard();
+  } catch (e) {
+    if (e.status === 429) {
+      $('sigResult').innerHTML = '<p class="err">' + esc(e.message) + '</p>' +
+        '<p><button class="btn" onclick="openPlans()">See plans</button></p>';
+    } else {
+      $('sigResult').innerHTML = '<p class="err">' + esc(e.message) + '</p>';
+    }
+  }
+}
+$('sigBtn').onclick = loadOneSignal;
+$('sigSymbol').addEventListener('keydown', e => { if (e.key === 'Enter') loadOneSignal(); });
+
+let sigGridLoadedAt = 0;
+async function loadSignalsGrid(force) {
+  if (!force && Date.now() - sigGridLoadedAt < 60000) return;
+  sigGridLoadedAt = Date.now();
+  try {
+    const d = await api('/api/signals');
+    if (d.error) {
+      $('sigGridNote').innerHTML = '<span class="err">' + esc(d.error) + '</span>';
+      $('sigGrid').innerHTML = '';
+      return;
+    }
+    $('sigGridNote').textContent = (d.universe_note || '') +
+      ' Updated ' + fmtTs(d.as_of) + '. Use "See full signal & reasons" on any card for the agents\u2019 full explanation.';
+    lastGridCards = d.signals;
+    $('sigGrid').innerHTML = d.signals.map(c => signalCard(c, true)).join('');
+  } catch (e) {
+    $('sigGridNote').innerHTML = '<span class="err">' + esc(e.message) + '</span>';
+  }
+}
+$('sigRefresh').onclick = () => loadSignalsGrid(true);
+
+/* ---------------- watchlist + track record ---------------- */
+async function toggleWatch(sym) {
+  try {
+    if (watchSymbols.includes(sym)) {
+      const d = await api('/api/watchlist/remove', 'POST', { symbol: sym });
+      watchSymbols = d.symbols;
+    } else {
+      const d = await api('/api/watchlist', 'POST', { symbol: sym });
+      watchSymbols = d.symbols;
+    }
+  } catch (e) { alert(e.message); return; }
+  renderSearchCard();
+  if (lastGridCards)
+    $('sigGrid').innerHTML = lastGridCards.map(c => signalCard(c, true)).join('');
+  loadWatchlist();
+}
+
+async function loadWatchlist() {
+  try {
+    const d = await api('/api/watchlist');
+    watchSymbols = d.symbols;
+    $('watchList').innerHTML = d.signals.length
+      ? d.signals.map(c => signalCard(c, true)).join('')
+      : '<p class="mut">Nothing here yet. Search a market above and tap ☆ Watch on its card.</p>';
+    renderSearchCard();
+    if (lastGridCards)
+      $('sigGrid').innerHTML = lastGridCards.map(c => signalCard(c, true)).join('');
+  } catch (e) {}
+}
+
+async function loadRecord() {
+  try {
+    const d = await api('/api/record');
+    if (!d.trades.length) {
+      $('recordList').innerHTML = '<p class="mut">No closed trades yet. ' +
+        'When published bots close paper trades, they will appear here — ' +
+        'wins and losses alike.</p>';
+      return;
+    }
+    $('recordList').innerHTML = '<table><tr><th>Bot</th><th>Market</th>' +
+      '<th>Direction</th><th>Entry</th><th>Exit</th><th>Paper PnL</th>' +
+      '<th>How it ended</th><th>Closed</th></tr>' +
+      d.trades.map(t => '<tr><td>' + esc(t.bot_name) + '</td><td>' +
+        esc(t.symbol) + '</td><td>' + esc(t.direction).toUpperCase() +
+        '</td><td>' + price(t.entry_price) + '</td><td>' +
+        price(t.exit_price) + '</td><td class="' + cls(t.pnl || 0) + '">' +
+        money(t.pnl) + '</td><td>' + esc(t.exit_reason || '') +
+        '</td><td>' + fmtTs(t.exit_ts_ms) + '</td></tr>').join('') +
+      '</table>';
+  } catch (e) {}
+}
+
+const KIND_PLAIN = {
+  v1: 'Analyst consensus bot', v2: 'Analyst consensus bot (safer filter)',
+  breakout: 'Breakout bot', router: 'Regime Router bot',
+  range: 'Range Specialist (candidate, unproven)', event: 'News watcher (does not trade)'
+};
+function homeBotCard(b) {
+  const m = b.metrics;
+  const running = b.status === 'running';
+  let btn = '';
+  if (me.role === 'admin' && b.kind !== 'event') {
+    btn = running
+      ? '<button class="btn secondary" onclick="homeBotToggle(' + b.id + ',\'pause\')">Pause paper trading</button>'
+      : '<button class="btn" onclick="homeBotToggle(' + b.id + ',\'start\')">Start paper trading</button>';
+  }
+  return '<div class="card botcard" style="margin-bottom:0"><h4>' + esc(b.name) + '</h4>' +
+    '<p style="margin:2px 0"><span class="statuspill ' + esc(b.status) + '">' +
+      esc(b.status).toUpperCase() + '</span> <span class="mut">' +
+      esc(KIND_PLAIN[b.kind] || b.kind) + (b.published ? ' · published' : '') + '</span></p>' +
+    '<p style="margin:4px 0">Paper balance: <b>' + money(m.equity) + '</b> · ' +
+      'PnL: <span class="' + cls(m.total_pnl) + '">' + money(m.total_pnl) + '</span><br>' +
+      '<span class="mut">Win rate ' + pct(m.win_rate) + ' · ' + m.trades_open +
+      ' open / ' + m.trades_closed + ' closed paper trades</span></p>' +
+    '<div class="row">' + btn +
+    '<button class="btn secondary" onclick="openBot(' + b.id + ')">Full record</button></div></div>';
+}
+async function homeBotToggle(id, action) {
+  try {
+    await api('/api/bots/' + id + '/' + action, 'POST');
+    refreshAll();
+  } catch (e) { alert(e.message); }
+}
+
+async function loadHome() {
+  const d = await api('/api/home');
+  $('hPnl').innerHTML = '<span class="' + cls(d.total_pnl) + '">' + money(d.total_pnl) + '</span>';
+  $('hWin').textContent = pct(d.win_rate);
+  $('hOpen').textContent = d.open_trades;
+  $('hFg').textContent = d.fear_greed ? d.fear_greed.value + ' (' + d.fear_greed.label + ')' : '–';
+  $('hDisc').textContent = d.disclaimer;
+  $('homeBots').innerHTML = d.bots.length ? d.bots.map(homeBotCard).join('') :
+    '<p class="mut">No bots yet. ' + (me.role === 'admin' ? 'Create one under Advanced → Admin.' : 'Ask the admin to publish a bot.') + '</p>';
+  loadSignalsGrid(false);
+  loadWatchlist();
+  loadRecord();
+}
+async function followBot(id) { await api('/api/bots/' + id + '/follow', 'POST'); alert('Following bot #' + id); }
+function openBot(id) {
+  currentBotId = id;
+  if (!document.body.classList.contains('advanced')) $('advToggle').click();
+  document.querySelector('[data-tab="bot"]').click();
+}
+
+async function loadBots() {
+  const d = await api('/api/bots');
+  botsCache = d.bots;
+  const sel = $('botSelect');
+  sel.innerHTML = d.bots.map(b => '<option value="' + b.id + '">' +
+    esc(b.name) + ' (' + b.kind + ')</option>').join('');
+  if (!currentBotId && d.bots.length) currentBotId = d.bots[0].id;
+  if (currentBotId) sel.value = currentBotId;
+  sel.onchange = () => { currentBotId = +sel.value; loadBotDetail(); renderSettings(); };
+  await loadBotDetail();
+  renderSettings();
+}
+
+async function loadBotDetail() {
+  if (!currentBotId) { $('botMeta').innerHTML = '<p class="mut">No bot selected.</p>'; return; }
+  const d = await api('/api/bots/' + currentBotId);
+  const b = d.bot, m = b.metrics;
+  let actions = '';
+  if (me.role === 'admin') {
+    actions = '<button class="btn" onclick="botAction(\'cycle\')">Run one cycle now</button> ' +
+      '<button class="btn secondary" onclick="botAction(\'start\')">Start</button> ' +
+      '<button class="btn secondary" onclick="botAction(\'pause\')">Pause</button> ' +
+      '<button class="btn secondary" onclick="botAction(\'stop\')">Stop</button> ' +
+      '<button class="btn secondary" onclick="botAction(\'' + (b.published ? 'unpublish' : 'publish') + '\')">' +
+        (b.published ? 'Unpublish' : 'Publish') + '</button> ' +
+      (b.kind !== 'event' ? '<button class="btn secondary" onclick="botAction(\'demo-trade\')">Open test position</button> ' : '') +
+      '<button class="btn danger" onclick="botAction(\'kill\')">⛔ Kill switch</button>';
+  }
+  $('botActions').innerHTML = actions;
+  $('botMeta').innerHTML =
+    '<b>' + esc(b.name) + '</b> · type: ' + esc(b.kind) + ' · status: <b>' + esc(b.status) +
+    '</b> · coins: ' + esc(b.symbols.join(', ') || 'n/a (news watcher)') +
+    '<br>Balance: <b>' + money(m.equity) + '</b> · PnL: <span class="' + cls(m.total_pnl) + '">' +
+    money(m.total_pnl) + '</span> · Win rate: ' + pct(m.win_rate) +
+    ' · Profit factor: ' + (m.profit_factor ?? '–') + ' · Max drawdown: ' + m.max_drawdown_pct +
+    '% · Sharpe: ' + (m.sharpe ?? 'not enough data') + ' · Fees paid: ' + money(m.total_fees) +
+    '<br><span class="mut">Last cycle: ' + fmtTs(b.last_cycle_at) + ' - ' + esc(b.last_cycle_summary) + '</span>';
+  // equity curve as SVG
+  const pts = d.equity_curve;
+  if (pts.length > 1) {
+    const W = 700, H = 160, pad = 8;
+    const xs = pts.map(p => p.ts_ms), ys = pts.map(p => p.equity);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs) || x0 + 1;
+    const y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const yr = (y1 - y0) || 1;
+    const coords = pts.map(p => ((p.ts_ms - x0) / ((x1 - x0) || 1) * (W - 2 * pad) + pad).toFixed(1) +
+      ',' + (H - pad - (p.equity - y0) / yr * (H - 2 * pad)).toFixed(1)).join(' ');
+    $('botCurve').innerHTML = '<svg width="100%" viewBox="0 0 ' + W + ' ' + H +
+      '" style="background:#121a2b;border-radius:8px"><polyline fill="none" stroke="#4da3ff" stroke-width="2" points="' +
+      coords + '"/></svg><p class="mut">From $' + ys[0].toFixed(2) + ' to $' + ys[ys.length - 1].toFixed(2) + '</p>';
+  } else {
+    $('botCurve').innerHTML = '<p class="mut">Not enough data yet - run a few cycles.</p>';
+  }
+  const lv = d.latest_votes || {};
+  $('botVotes').innerHTML = Object.keys(lv).length ? Object.entries(lv).map(([sym, v]) =>
+    '<p><b>' + esc(sym) + '</b> <span class="mut">(' + esc(v.cycle.action) + ', ' +
+    fmtTs(v.cycle.ts_ms) + ')</span><br>' + v.votes.map(x =>
+      '<span class="pill">' + esc(x.agent) + ': ' + esc(x.direction) + ' ' +
+      Math.round(x.confidence * 100) + '%</span>').join(' ') + '</p>').join('') :
+    '<p class="mut">No cycles yet.</p>';
+  $('botTrades').innerHTML = d.trades.length ? d.trades.map(t =>
+    '<div style="border-bottom:1px solid var(--line);padding:8px 0">' +
+    '<b>#' + t.id + ' ' + esc(t.symbol) + ' ' + esc(t.direction).toUpperCase() + '</b> · ' +
+    esc(t.status) + ' · entry ' + t.entry_price + ' · stop ' + t.stop_loss +
+    ' · TP1 ' + (t.tp1_price ?? '–') + (t.tp1_done ? ' (booked)' : '') +
+    ' · final target ' + t.take_profit +
+    (t.status === 'closed' ? ' · exit ' + t.exit_price + ' (' + esc(t.exit_reason) +
+      ') · <span class="' + cls(t.pnl) + '">PnL ' + money(t.pnl) + '</span>' : '') +
+    (t.partial_pnl ? ' · partial booked: ' + money(t.partial_pnl) : '') +
+    ' · fees ' + money(t.fees_paid) +
+    (t.entry_reason ? '<div class="reason">' + esc(t.entry_reason) + '</div>' : '') +
+    (t.exit_detail ? '<div class="reason">' + esc(t.exit_detail) + '</div>' : '') +
+    (!d.reasons_visible && me.role !== 'admin' ? '<p class="mut">Agent reasons are part of the Pro plan.</p>' : '') +
+    '</div>').join('') : '<p class="mut">No trades yet.</p>';
+}
+async function botAction(action) {
+  try {
+    const d = await api('/api/bots/' + currentBotId + '/' + action, 'POST');
+    if (d.summary) alert(d.summary);
+    if (d.detail) alert(d.detail);
+    if (action === 'kill') alert('Kill switch done. Closed positions: ' + (d.closed || []).length);
+    refreshAll();
+  } catch (e) { alert(e.message); }
+}
+
+async function loadLive() {
+  const d = await api('/api/trades/open');
+  $('liveTrades').innerHTML = d.trades.length ?
+    '<table><tr><th>Bot</th><th>Trade</th><th>Entry</th><th>Stop</th><th>TP1 / Target</th><th>Now</th><th>Unreal. PnL</th><th></th></tr>' +
+    d.trades.map(t => '<tr><td>' + esc(t.bot_name) + '</td><td>#' + t.id + ' ' +
+      esc(t.symbol) + ' ' + esc(t.direction).toUpperCase() + '</td><td>' + t.entry_price +
+      '</td><td>' + t.stop_loss + '</td><td>' + (t.tp1_price ?? '–') + ' / ' + t.take_profit +
+      '</td><td>' + (t.current_price ?? '–') + '</td><td class="' + cls(t.unrealised_pnl || 0) + '">' +
+      money(t.unrealised_pnl) + '</td><td>' +
+      (me.role === 'admin' ? '<button class="btn danger" onclick="closeTrade(' + t.bot_id + ',' + t.id + ')">Close now</button>' : '') +
+      '</td></tr>').join('') + '</table>' :
+    '<p class="mut">No open positions right now.</p>';
+}
+async function closeTrade(botId, tradeId) {
+  if (!confirm('Close this paper position at the latest price?')) return;
+  try { const d = await api('/api/trades/' + botId + '/' + tradeId + '/close', 'POST');
+    alert('Closed. PnL: ' + money(d.summary.pnl)); refreshAll(); }
+  catch (e) { alert(e.message); }
+}
+
+async function loadNews() {
+  try {
+    const d = await api('/api/news');
+    $('newsNote').textContent = d.note + (d.fear_greed ?
+      ' Market mood now: Fear & Greed ' + d.fear_greed.value + ' (' + d.fear_greed.label + ').' : '');
+    $('newsAlerts').innerHTML = d.alerts.length ? d.alerts.map(a =>
+      '<p>🔔 ' + esc(a.text || a.headline || '') + '</p>').join('') :
+      '<p class="mut">No confirmed alerts yet.</p>';
+    $('newsList').innerHTML = d.news.map(n =>
+      '<div style="border-bottom:1px solid var(--line);padding:8px 0">' +
+      '<span class="pill ' + (n.confirmation === 'CONFIRMED' ? 'conf' : 'unconf') + '">' +
+      n.confirmation + '</span> <span class="pill">' + esc(n.category) + '</span> ' +
+      '<span class="pill">' + esc(n.impact_label) + ' · impact ' + esc(n.impact) + '</span> ' +
+      '<a href="' + esc(n.url) + '" target="_blank" rel="noopener">' + esc(n.headline) + '</a>' +
+      '<br><span class="mut">' + esc(n.source) + ' · ' + fmtTs(n.published_ts_ms) +
+      (n.symbols.length ? ' · coins: ' + esc(n.symbols.join(', ')) : '') + '</span></div>').join('');
+  } catch (e) {
+    $('newsList').innerHTML = '<p class="warn">🔒 ' + esc(e.message) +
+      ' See Billing &amp; plans to upgrade.</p>';
+    $('newsAlerts').innerHTML = '';
+  }
+}
+
+async function loadCompare() {
+  const d = await api('/api/compare');
+  $('cmpDisc').textContent = d.disclaimer;
+  $('compareTable').innerHTML = d.bots.length ?
+    '<table><tr><th>Bot</th><th>Balance</th><th>PnL</th><th>Win rate</th><th>Profit factor</th><th>Max drawdown</th><th>Sharpe</th><th>Trades</th><th>Published</th></tr>' +
+    d.bots.map(b => '<tr><td><b>' + esc(b.name) + '</b> (' + esc(b.kind) + ')</td><td>' +
+      money(b.equity) + '</td><td class="' + cls(b.total_pnl) + '">' + money(b.total_pnl) +
+      '</td><td>' + pct(b.win_rate) + '</td><td>' + (b.profit_factor ?? '–') + '</td><td>' +
+      b.max_drawdown_pct + '%</td><td>' + (b.sharpe ?? 'not enough data') + '</td><td>' +
+      b.trades_open + ' open / ' + b.trades_closed + ' closed</td><td>' +
+      (b.published ? 'yes' : 'no') + '</td></tr>').join('') + '</table>' :
+    '<p class="mut">No bots yet.</p>';
+}
+
+function renderSettings() {
+  const b = botsCache.find(x => x.id === currentBotId);
+  if (!b) { $('settingsForm').innerHTML = '<p class="mut">Pick a bot first (Bot detail tab).</p>'; return; }
+  $('settingsForm').innerHTML =
+    '<p>Bot: <b>' + esc(b.name) + '</b> (' + esc(b.kind) + ')</p>' +
+    '<label>Coins (comma separated - fixed universe mode)</label><input id="setSymbols" value="' + esc(b.symbols.join(',')) + '">' +
+    '<label>Universe mode</label><select id="setUniverseMode">' +
+    '<option value="fixed"' + (b.universe_mode !== 'screener' ? ' selected' : '') + '>Fixed - only the coins above</option>' +
+    '<option value="screener"' + (b.universe_mode === 'screener' ? ' selected' : '') + '>Screener - top coins across the whole market, refreshed every cycle</option></select>' +
+    '<label>Universe size (screener mode: top N coins, 5-30; BTC/ETH/SOL are always added)</label><input id="setUniverseSize" type="number" min="5" max="30" value="' + (b.universe_size || 20) + '">' +
+    '<label>Risk per trade (0.01 = 1%)</label><input id="setRisk" type="number" step="0.001" value="' + b.risk_pct + '">' +
+    '<label>Daily loss limit (0.03 = 3%)</label><input id="setDaily" type="number" step="0.001" value="' + b.daily_loss_pct + '">' +
+    '<label>Auto-cycle every N minutes (0 = manual)</label><input id="setCycle" type="number" value="' + b.cycle_minutes + '">' +
+    '<button class="btn" onclick="saveSettings()">Save settings</button> <span id="setMsg"></span>' +
+    (me.role !== 'admin' ? '<p class="mut">Only the admin can change settings.</p>' : '');
+}
+async function saveSettings() {
+  try {
+    await api('/api/bots/' + currentBotId + '/settings', 'POST', {
+      symbols: $('setSymbols').value.split(',').map(s => s.trim()).filter(Boolean),
+      universe_mode: $('setUniverseMode').value,
+      universe_size: parseInt($('setUniverseSize').value),
+      risk_pct: parseFloat($('setRisk').value),
+      daily_loss_pct: parseFloat($('setDaily').value),
+      cycle_minutes: parseInt($('setCycle').value) });
+    $('setMsg').innerHTML = '<span class="okmsg">Saved.</span>'; refreshAll();
+  } catch (e) { $('setMsg').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+}
+$('globalKill').onclick = async () => {
+  if (!confirm('Activate the GLOBAL kill switch? Every bot stops and every open paper position closes.')) return;
+  try { const d = await api('/api/kill/global', 'POST');
+    $('killMsg').innerHTML = '<span class="okmsg">Global kill switch ON. Closed ' + d.closed_count + ' position(s).</span>';
+    refreshAll(); } catch (e) { $('killMsg').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+};
+$('globalClear').onclick = async () => {
+  try { await api('/api/kill/global/clear', 'POST');
+    $('killMsg').innerHTML = '<span class="okmsg">Global kill switch cleared. Bots stay stopped until you start them again.</span>';
+    refreshAll(); } catch (e) { $('killMsg').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+};
+
+async function loadPlans() {
+  const d = await api('/api/plans');
+  $('billDisc').textContent = d.disclaimer + ' ' + d.autotrading_note;
+  $('plans').innerHTML = Object.entries(d.plans).map(([key, p]) =>
+    '<div class="card"><h3>' + esc(p.name) + ' - $' + p.price + '/mo</h3>' +
+    '<ul>' + p.features.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' +
+    (me && me.plan === key ? '<span class="pill conf">YOUR PLAN</span>' : '') + '</div>').join('');
+}
+$('coBtn').onclick = async () => {
+  try {
+    const d = await api('/api/checkout', 'POST',
+      { plan: $('coPlan').value, card_number: $('coCard').value });
+    $('coMsg').innerHTML = '<span class="okmsg">' + esc(d.message) + '</span>';
+    me = d.user; showApp();
+  } catch (e) { $('coMsg').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+};
+
+$('nbBtn').onclick = async () => {
+  try {
+    await api('/api/bots', 'POST', { name: $('nbName').value, kind: $('nbKind').value,
+      start_equity: parseFloat($('nbEquity').value), risk_pct: parseFloat($('nbRisk').value),
+      daily_loss_pct: parseFloat($('nbDaily').value), cycle_minutes: parseInt($('nbCycle').value),
+      universe_mode: $('nbUniverseMode').value, universe_size: parseInt($('nbUniverseSize').value) });
+    $('nbMsg').innerHTML = '<span class="okmsg">Bot created (paused). Start it from Bot detail.</span>';
+    refreshAll();
+  } catch (e) { $('nbMsg').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; }
+};
+async function loadAdmin() {
+  const u = await api('/api/admin/users');
+  $('adminUsers').innerHTML = '<table><tr><th>ID</th><th>Email</th><th>Name</th><th>Role</th><th>Plan</th></tr>' +
+    u.users.map(x => '<tr><td>' + x.id + '</td><td>' + esc(x.email) + '</td><td>' + esc(x.name) +
+      '</td><td>' + x.role + '</td><td>' + x.plan + '</td></tr>').join('') + '</table>';
+  const l = await api('/api/admin/logs');
+  $('adminLogs').innerHTML = '<table><tr><th>When</th><th>User</th><th>Action</th><th>Detail</th></tr>' +
+    l.logs.slice(0, 40).map(x => '<tr><td>' + fmtTs(x.ts_ms) + '</td><td>' + (x.user_id ?? '–') +
+      '</td><td>' + esc(x.action) + '</td><td>' + esc(x.detail) + '</td></tr>').join('') + '</table>';
+}
+
+(async () => {
+  try { const d = await api('/api/me'); me = d.user; showApp(); }
+  catch (e) { showAuth(); }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Runtime data — never commit user data, journals or backups
+data/
+data-demo/
+*.db
+
+# Python
+__pycache__/
+*.pyc
+
+# Logs and runtime outputs
+*.log
+*.jsonl
+screener_report.md
+screener_universe.json
+walkthrough/

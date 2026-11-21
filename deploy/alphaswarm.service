@@ -1,0 +1,25 @@
+[Unit]
+Description=AlphaSwarm paper-trading platform
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=alphaswarm
+Group=alphaswarm
+WorkingDirectory=/opt/alphaswarm
+Environment=ALPHASWARM_PORT=8000
+Environment=ALPHASWARM_DATA_DIR=/opt/alphaswarm/data
+ExecStart=/usr/bin/python3 /opt/alphaswarm/app.py
+Restart=on-failure
+RestartSec=5
+# The app binds 127.0.0.1 only; Caddy in front terminates HTTPS.
+# Stdout/stderr go to the systemd journal (rotated by journald).
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

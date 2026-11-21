@@ -1,0 +1,17 @@
+# AlphaSwarm - Caddy reverse proxy.
+# Replace the placeholder domain with the real one before use.
+# Caddy obtains and renews a Let's Encrypt HTTPS certificate
+# automatically for the domain below; nothing else to configure.
+# The app itself stays bound to 127.0.0.1:8000 and is never exposed
+# directly.
+
+alphaswarm.example.com {
+	reverse_proxy 127.0.0.1:8000
+	encode gzip
+	log {
+		output file /var/log/caddy/alphaswarm.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+}
